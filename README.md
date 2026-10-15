@@ -64,7 +64,11 @@ genuinely agentic, and usable with any LLM — including fully local models.**
   it off in Settings if you use a text-only model.
 - **Optional developer tools** — read the page's console messages and network
   requests to debug ("why is this page erroring?"), and a run-JavaScript escape
-  hatch for when the other tools aren't enough. Both opt-in in Settings.
+  hatch for when the other tools aren't enough. Both opt-in in Settings. For
+  run-JavaScript to work on sites with a strict Content Security Policy
+  (GitHub, Google, most web apps), also turn on **Allow User Scripts** for
+  OpenSidekick at `chrome://extensions` → OpenSidekick → Details (Chrome 135+;
+  Developer mode before Chrome 138).
 - **Multi-tab** — list, open, and switch tabs to complete a task.
 - **Any provider, any model** via two protocols:
   - OpenAI-compatible (`/chat/completions`): OpenRouter, OpenAI, Google Gemini,

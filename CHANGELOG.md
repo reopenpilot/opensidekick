@@ -5,6 +5,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changed
+
+- **run_javascript now works on sites with a strict Content Security Policy.**
+  It used to evaluate the model's code with `new Function` inside the page, so
+  any site without `'unsafe-eval'` in its CSP (GitHub, Google, most web apps)
+  refused it with "Evaluating a string as JavaScript violates the following
+  Content Security Policy directive". When **Allow User Scripts** is on for
+  OpenSidekick (`chrome://extensions` → OpenSidekick → Details; Developer mode
+  before Chrome 138), the code is injected with Chrome's User Scripts API
+  (`chrome.userScripts.execute`, Chrome 135+), which page CSPs don't block. It
+  still runs in the page's own world, so page globals stay readable. With the
+  switch off, the old path is used, and a CSP refusal tells the agent (and you)
+  how to turn it on. Settings shows which path is active. Adds the
+  `userScripts` permission.
+- **run_javascript code can use `await`.** The code is an async function body
+  on both paths, and a returned promise is awaited before the result is sent
+  back.
+
 ## [0.3.1] — 2026-10-13
 
 ### Fixed

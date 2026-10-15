@@ -4,6 +4,7 @@
 
 import { MSG } from "../common/constants.js";
 import { readConsole, readNetwork } from "./cdp.js";
+import { runJavascript } from "./run-javascript.js";
 
 export const TOOL_DEFS = [
   {
@@ -162,8 +163,9 @@ export const TOOL_DEFS = [
   {
     name: "run_javascript",
     description:
-      "Run JavaScript in the current page and get the result. Use `return` to " +
-      "return a value, e.g. `return document.title` or " +
+      "Run JavaScript in the current page and get the result. The code is a " +
+      "function body: use `return` to return a value and `await` for async work, e.g. " +
+      "`return document.title` or " +
       "`return [...document.querySelectorAll('a')].map(a => a.href)`. Powerful " +
       "escape hatch for reading or manipulating the page when the other tools " +
       "aren't enough.",
@@ -298,7 +300,7 @@ export async function executeTool(name, args, ctx) {
     case "take_screenshot":
       return await screenshot(ctx);
     case "run_javascript":
-      return await runJavascript(ctx, args.code);
+      return await runJavascript(await ctx.getTabId(), args.code);
     case "read_console":
       return await readConsole(await ctx.getTabId(), { onlyErrors: !!args.only_errors, limit: args.limit });
     case "read_network":
@@ -405,40 +407,6 @@ async function switchTab(ctx, tabId) {
     return { ok: true, tab_id: tabId, url: tab.url, title: tab.title };
   } catch {
     return { ok: false, error: `No tab with id ${tabId}.` };
-  }
-}
-
-async function runJavascript(ctx, code) {
-  const tabId = await ctx.getTabId();
-  try {
-    const results = await chrome.scripting.executeScript({
-      target: { tabId },
-      world: "MAIN",
-      args: [String(code || "")],
-      func: (src) => {
-        try {
-          // Function body so `return` works; runs in the page's global scope.
-          const out = new Function(src)();
-          let serialized;
-          try {
-            serialized = out === undefined ? "undefined" : JSON.stringify(out);
-          } catch {
-            serialized = String(out);
-          }
-          return { ok: true, result: serialized === undefined ? String(out) : serialized };
-        } catch (e) {
-          return { ok: false, error: String((e && e.message) || e) };
-        }
-      },
-    });
-    const r = results && results[0] && results[0].result;
-    if (!r) return { ok: false, error: "No result (restricted page, or the script couldn't run)." };
-    if (r.ok === false) return { ok: false, error: "JavaScript error: " + r.error };
-    // The URL lets chat history spot a sensitive page read this way.
-    const tab = await chrome.tabs.get(tabId).catch(() => null);
-    return { ok: true, url: tab ? tab.url : undefined, result: String(r.result).slice(0, 4000) };
-  } catch (e) {
-    return { ok: false, error: "Could not run JavaScript here: " + (e.message || e) };
   }
 }
 

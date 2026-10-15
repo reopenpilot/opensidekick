@@ -11,6 +11,7 @@ import {
   PROMPT_HISTORY_KEY,
 } from "../common/constants.js";
 import { presetFor } from "../common/presets.js";
+import { userScriptsAvailable } from "../background/run-javascript.js";
 import { isLocalBaseUrl, thinkingVerdict, corsHint } from "../common/model-test-messages.js";
 import { loadConfig, saveConfig, loadSessionIndex } from "../background/storage.js";
 import { listModels, testModel } from "../background/providers.js";
@@ -619,7 +620,13 @@ function wireSettings() {
   $("#enable-js").addEventListener("change", (e) => {
     config.settings.enableJsTool = e.target.checked;
     persist();
+    renderUserScriptsStatus();
   });
+  $("#js-userscripts-open").addEventListener("click", () => {
+    chrome.tabs.create({ url: `chrome://extensions/?id=${chrome.runtime.id}` });
+  });
+  // The toggle lives in Chrome's own settings page; re-check when the user returns.
+  window.addEventListener("focus", renderUserScriptsStatus);
   $("#enable-cdp").addEventListener("change", (e) => {
     config.settings.enableCdp = e.target.checked;
     persist();
@@ -640,9 +647,28 @@ function renderSettings() {
   $("#temp-value").textContent = Number(s.temperature).toFixed(2);
   $("#enable-vision").checked = !!s.enableVision;
   $("#enable-js").checked = !!s.enableJsTool;
+  renderUserScriptsStatus();
   $("#enable-cdp").checked = !!s.enableCdp;
   $("#keep-history").checked = s.keepHistory !== false;
   renderHistoryCard();
+}
+
+// run_javascript can only get past a strict Content Security Policy through
+// Chrome's User Scripts API, which exists only after the user turns on "Allow
+// User Scripts" (or Developer mode before Chrome 138). Say which path is live.
+function renderUserScriptsStatus() {
+  const on = !!config?.settings?.enableJsTool;
+  const status = $("#js-userscripts-status");
+  const open = $("#js-userscripts-open");
+  status.hidden = !on;
+  if (!on) { open.hidden = true; return; }
+  if (userScriptsAvailable()) {
+    status.textContent = "✓ Allow User Scripts is on: run_javascript also works on sites with a strict Content Security Policy.";
+    open.hidden = true;
+  } else {
+    status.textContent = "Allow User Scripts is off, so sites with a strict Content Security Policy (GitHub, Google, …) will block run_javascript. Turn it on in OpenSidekick’s Chrome settings, under Details.";
+    open.hidden = false;
+  }
 }
 
 // -------------------------------------------------------------------------
